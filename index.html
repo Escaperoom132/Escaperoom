@@ -242,7 +242,7 @@
           clearMessage();
         }, 450);
       } else {
-        setMessage("❌ Falscher Code. Versuch's nochmal.", "bad");
+        setMessage("❌ Netter versuch! versuche es nochmal aber diesmal richtig.", "bad");
         // Sperren wenn zu viele Fehlversuche
         if (MAX_TRIES > 0 && tries >= MAX_TRIES) {
           setTimeout(() => lock(LOCK_SECONDS), 300);
