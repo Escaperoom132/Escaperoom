@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Passwort-Rätsel</title>
+  <style>
+    :root{
+      --bg: #0f1724;
+      --card: #0b1220;
+      --accent: #60a5fa;
+      --success: #34d399;
+      --danger: #fb7185;
+      --glass: rgba(255,255,255,0.03);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(96,165,250,0.08), transparent),
+                  radial-gradient(1000px 500px at 90% 90%, rgba(52,211,153,0.03), transparent),
+                  var(--bg);
+      color:#e6eef8;
+    }
+
+    .wrap{
+      min-height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:32px;
+      box-sizing:border-box;
+    }
+
+    .card{
+      width:100%;
+      max-width:520px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      border-radius:12px;
+      padding:28px;
+      backdrop-filter: blur(6px);
+    }
+
+    h1{
+      margin:0 0 8px 0;
+      font-size:20px;
+      letter-spacing:0.2px;
+    }
+    p.lead{
+      margin:0 0 18px 0;
+      color: #b9c8dd;
+      font-size:14px;
+    }
+
+    .input-row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    input[type="password"]{
+      flex:1;
+      padding:12px 14px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.06);
+      background:var(--glass);
+      color:inherit;
+      font-size:15px;
+      outline:none;
+      transition:box-shadow .12s, border-color .12s;
+    }
+    input[type="password"]:focus{
+      box-shadow: 0 6px 20px rgba(96,165,250,0.08);
+      border-color: rgba(96,165,250,0.5);
+    }
+
+    button{
+      padding:10px 14px;
+      border-radius:8px;
+      border:0;
+      background: linear-gradient(180deg,var(--accent), #3b82f6);
+      color:#04263b;
+      font-weight:600;
+      cursor:pointer;
+      font-size:14px;
+    }
+    button:active{ transform: translateY(1px); }
+
+    .message{
+      margin-top:16px;
+      padding:12px;
+      border-radius:8px;
+      display:none;
+      align-items:center;
+      gap:10px;
+      font-size:15px;
+    }
+    .message.show{ display:flex; }
+
+    .msg-success{ background: rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.12); color: #bff7dd; }
+    .msg-wrong{ background: rgba(251,113,133,0.06); border:1px solid rgba(251,113,133,0.12); color:#ffd7dc; }
+
+    .hint{
+      margin-top:12px;
+      font-size:13px;
+      color:#9db7d6;
+    }
+
+    .small{
+      font-size:12px;
+      color:#9fb7d6;
+    }
+
+    footer{
+      margin-top:16px;
+      font-size:12px;
+      color:#7f9fc2;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .hidden-content{
+      margin-top:18px;
+      padding:16px;
+      border-radius:8px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border:1px dashed rgba(255,255,255,0.03);
+      display:none;
+      text-align:center;
+      font-weight:700;
+      font-size:16px;
+    }
+
+    .locked{
+      opacity:0.18;
+      user-select:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="main" aria-labelledby="title">
+      <h1 id="title">Geheimes Passwort-Rätsel</h1>
+      <p class="lead">Gib den Code ein, um die verborgene Nachricht freizuschalten — viel Erfolg! (Drücke Enter zum Abschicken)</p>
+
+      <div class="input-row" aria-hidden="false">
+        <input id="pwd" type="password" inputmode="text" aria-label="Code eingeben" placeholder="Code eingeben" autocomplete="off" />
+        <button id="submitBtn" type="button">Prüfen</button>
+      </div>
+
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+
+      <div class="hint small">Tipp: Das ist nur ein Demo-Passwort (s.u.). Für echte Geheimnisse solltest du serverseitige Prüflogik verwenden.</div>
+
+      <div id="hidden" class="hidden-content" aria-hidden="true">
+        Super — du hast gewonnen! 🎉<br>
+        Du hast den richtigen Code eingegeben.
+      </div>
+
+      <footer>
+        <div class="small">Versuchszähler: <span id="tries">0</span></div>
+        <div class="small locked" id="lockedNote">Nicht gesperrt</div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // --- EINFACHE KONFIG ---
+    // Lege hier das Passwort fest:
+    const PASSWORD = "geheim123"; // <-- Passwort ändern wie du willst
+
+    // Optionale Sperre nach N Fehlschlägen:
+    const MAX_TRIES = 5;      // 0 = keine Sperre
+    const LOCK_SECONDS = 20;  // Sperrzeit in Sekunden (wenn MAX_TRIES > 0)
+
+    // --- LOGIK ---
+    const input = document.getElementById("pwd");
+    const btn = document.getElementById("submitBtn");
+    const msg = document.getElementById("message");
+    const hidden = document.getElementById("hidden");
+    const triesEl = document.getElementById("tries");
+    const lockedNote = document.getElementById("lockedNote");
+
+    let tries = 0;
+    let lockedUntil = 0;
+
+    function setMessage(text, type) {
+      msg.textContent = text;
+      msg.className = "message show " + (type === "ok" ? "msg-success" : "msg-wrong");
+    }
+
+    function clearMessage() {
+      msg.className = "message";
+      msg.textContent = "";
+    }
+
+    function lock(seconds) {
+      lockedUntil = Date.now() + seconds*1000;
+      input.disabled = true;
+      btn.disabled = true;
+      lockedNote.textContent = "Gesperrt für " + seconds + "s";
+      lockedNote.classList.add("locked");
+      let interval = setInterval(() => {
+        const remaining = Math.ceil((lockedUntil - Date.now())/1000);
+        if (remaining <= 0) {
+          clearInterval(interval);
+          input.disabled = false;
+          btn.disabled = false;
+          lockedNote.textContent = "Nicht gesperrt";
+          lockedNote.classList.remove("locked");
+          tries = 0;
+          triesEl.textContent = tries;
+          clearMessage();
+        } else {
+          lockedNote.textContent = "Gesperrt für " + remaining + "s";
+        }
+      }, 250);
+    }
+
+    function checkPassword() {
+      if (lockedUntil > Date.now()) {
+        setMessage("Zurzeit gesperrt — warte kurz.", "bad");
+        return;
+      }
+
+      const val = input.value.trim();
+      tries++;
+      triesEl.textContent = tries;
+
+      if (val === PASSWORD) {
+        // Erfolg
+        setMessage("✅ Richtig! Freischaltung...", "ok");
+        // kleine Verzögerung für Dramaturgie
+        setTimeout(() => {
+          hidden.style.display = "block";
+          hidden.setAttribute("aria-hidden", "false");
+          hidden.scrollIntoView({behavior:"smooth", block:"center"});
+          clearMessage();
+        }, 450);
+      } else {
+        setMessage("❌ Falscher Code. Versuch's nochmal.", "bad");
+        // Sperren wenn zu viele Fehlversuche
+        if (MAX_TRIES > 0 && tries >= MAX_TRIES) {
+          setTimeout(() => lock(LOCK_SECONDS), 300);
+        }
+      }
+      input.value = "";
+      input.focus();
+    }
+
+    // Enter-Taste zum Abschicken
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        checkPassword();
+      }
+    });
+
+    btn.addEventListener("click", checkPassword);
+
+    // optional: Fokus aufs Feld setzen
+    window.addEventListener("load", () => input.focus());
+  </script>
+</body>
+</html>
